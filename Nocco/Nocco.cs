@@ -47,6 +47,7 @@ using System.Web.Razor;
 namespace Nocco {
 	class Nocco {
 		private static string _executingDirectory;
+		private static string _targetDirectory = @"E:\\Projects\WebCache\WebCache\";
 		private static List<string> _files;
 		private static Type _templateType;
 
@@ -114,17 +115,17 @@ namespace Nocco {
 		// and write out the documentation. Pass the completed sections into the template
 		// found in `Resources/Nocco.cshtml`
 		private static void GenerateHtml(string source, List<Section> sections) {
-			int depth;
-			var destination = GetDestination(source, out depth);
-			
-			string pathToRoot = string.Concat(Enumerable.Repeat(".." + Path.DirectorySeparatorChar, depth));
+			int depth; 
+			var destination = Path.Combine(_executingDirectory, GetDestination(source, out depth));
 
+			var pathToRoot = string.Concat(Enumerable.Repeat(".." + Path.DirectorySeparatorChar, depth));
 			var htmlTemplate = Activator.CreateInstance(_templateType) as TemplateBase;
 
 			htmlTemplate.Title = Path.GetFileName(source);
 			htmlTemplate.PathToCss = Path.Combine(pathToRoot, "nocco.css").Replace('\\', '/');
-		    htmlTemplate.PathToJs = Path.Combine(pathToRoot, "prettify.js").Replace('\\', '/');
-			htmlTemplate.GetSourcePath = s => Path.Combine(pathToRoot, Path.ChangeExtension(s.ToLower(), ".html").Substring(2)).Replace('\\', '/');
+			htmlTemplate.PathToJs = Path.Combine(pathToRoot, "prettify.js").Replace('\\', '/');
+			htmlTemplate.GetSourceUrl = s => Path.Combine(pathToRoot, (Path.GetFileNameWithoutExtension(s.ToLower()) + ".html")).Replace('\\', '/');
+			htmlTemplate.GetSourcePath = s => s.Replace(_targetDirectory, string.Empty);
 			htmlTemplate.Sections = sections;
 			htmlTemplate.Sources = _files;
 			
@@ -193,7 +194,8 @@ namespace Nocco {
 				Name = "csharp",
 				Symbol = "///?",
 				Ignores = new List<string> {
-					"Designer.cs"
+					"Designer.cs",
+					"AssemblyInfo.cs"
 				},
 				MarkdownMaps = new Dictionary<string, string> {
 					{ @"<c>([^<]*)</c>", "`$1`" },
@@ -227,8 +229,11 @@ namespace Nocco {
 
 		// Compute the destination HTML path for an input source file path. If the source
 		// is `Example.cs`, the HTML will be at `docs/example.html`
-		private static string GetDestination(string filepath, out int depth) {
-			var dirs = Path.GetDirectoryName(filepath).Substring(1).Split(new[] { Path.DirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
+		private static string GetDestination(string filepath, out int depth)
+		{
+			filepath = filepath.Replace(_targetDirectory, string.Empty);
+
+			var dirs = Path.GetDirectoryName(filepath).Split(new[] { Path.DirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
 			depth = dirs.Length;
 
 			var dest = Path.Combine("docs", string.Join(Path.DirectorySeparatorChar.ToString(), dirs)).ToLower();
@@ -251,7 +256,7 @@ namespace Nocco {
 
 				_files = new List<string>();
 				foreach (var target in targets) {
-					_files.AddRange(Directory.GetFiles(".", target, SearchOption.AllDirectories).Where(filename => {
+					_files.AddRange(Directory.GetFiles(_targetDirectory, target, SearchOption.AllDirectories).Where(filename => {
 						var language = GetLanguage(Path.GetFileName(filename)) ;
 
 						if (language == null)

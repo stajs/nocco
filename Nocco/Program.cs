@@ -6,6 +6,7 @@ namespace Nocco
     {
         static void Main(string[] args)
         {
+			  args = new string[] { "*.cs"};
             Nocco.Generate(args);
         }
     }
